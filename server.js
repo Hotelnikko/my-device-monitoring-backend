@@ -12,9 +12,11 @@ const initTelegramBot = require('./utils/telegram');
 const { Server } = require('socket.io');
 
 const app = express();
+
+// เชื่อมต่อกับ MongoDB
 connectDB();
 
-// อนุญาต CORS
+// อนุญาต CORS สำหรับ Vercel และเครื่องท้องถิ่น
 app.use(cors({
   origin: ['http://localhost:3000', 'https://my-device-monitoring-frontend.vercel.app'],
   credentials: true,
@@ -25,13 +27,25 @@ app.use('/api/auth', authRoutes);
 app.use('/api/devices', deviceRoutes);
 app.use('/api/notifications', notificationRoutes);
 
+// Health Check Endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ message: 'Server is running' });
+});
+
+// เริ่มเซิร์ฟเวอร์
 const PORT = process.env.PORT || 5000;
 const server = app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+// การจัดการข้อผิดพลาดทั่วไป
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ msg: 'Something went wrong!' });
+});
 
 // สร้าง Socket.IO Server
 const io = new Server(server, {
   cors: {
-    origin: 'http://localhost:3000',
+    origin: ['http://localhost:3000', 'https://my-device-monitoring-frontend.vercel.app'],
     credentials: true,
   },
 });
