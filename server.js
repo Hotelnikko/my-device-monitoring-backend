@@ -19,8 +19,13 @@ connectDB();
 // อนุญาต CORS สำหรับ Vercel และเครื่องท้องถิ่น
 app.use(cors({
   origin: ['http://localhost:3000', 'https://my-device-monitoring-frontend.vercel.app'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'x-auth-token'],
   credentials: true,
 }));
+
+// เพิ่มการจัดการคำขอ OPTIONS สำหรับทุก route
+app.options('*', cors());
 
 app.use(express.json());
 app.use('/api/auth', authRoutes);
@@ -46,6 +51,7 @@ app.use((err, req, res, next) => {
 const io = new Server(server, {
   cors: {
     origin: ['http://localhost:3000', 'https://my-device-monitoring-frontend.vercel.app'],
+    methods: ['GET', 'POST'],
     credentials: true,
   },
 });
@@ -80,7 +86,6 @@ io.on('connection', (socket) => {
 // เริ่มต้น Telegram Bot
 const telegramBot = initTelegramBot(process.env.TELEGRAM_BOT_TOKEN, process.env.TELEGRAM_CHAT_ID);
 
-// เก็บสถานะล่าสุดของอุปกรณ์เพื่อป้องกันการแจ้งเตือนซ้ำ
 const deviceStatusCache = new Map();
 
 const checkAllDevices = async () => {
@@ -98,9 +103,8 @@ const checkAllDevices = async () => {
       }
 
       const newStatus = isOnline ? 'online' : 'offline';
-
-      // ตรวจสอบสถานะใน cache เพื่อป้องกันการแจ้งเตือนซ้ำ
       const cachedStatus = deviceStatusCache.get(device.ip) || previousStatus;
+
       if (cachedStatus !== newStatus) {
         console.log(`Status changed for ${device.name}: ${cachedStatus} -> ${newStatus}`);
         await Device.findByIdAndUpdate(device._id, {
@@ -108,7 +112,6 @@ const checkAllDevices = async () => {
           lastChecked: new Date(),
         });
 
-        // บันทึกการแจ้งเตือนใน MongoDB
         await Notification.create({
           userId: device.userId,
           deviceId: device._id,
@@ -118,7 +121,6 @@ const checkAllDevices = async () => {
           newStatus,
         });
 
-        // ส่งข้อความแจ้งเตือนทุกครั้ง
         const message = `
           Device Status Update:
           - Name: ${device.name}
@@ -127,7 +129,7 @@ const checkAllDevices = async () => {
           - New Status: ${newStatus}
           - Last Checked: ${new Date().toLocaleString()}
         `;
-        
+
         try {
           await telegramBot.sendNotification(message);
           console.log('Telegram notification sent for device:', device.name);
@@ -135,10 +137,8 @@ const checkAllDevices = async () => {
           console.error('Failed to send Telegram notification:', telegramError.message, telegramError.stack);
         }
 
-        // อัปเดต cache
         deviceStatusCache.set(device.ip, newStatus);
 
-        // ส่งสถานะใหม่ผ่าน Socket.IO ไปยังทุก client
         io.emit('deviceStatusUpdate', {
           _id: device._id,
           name: device.name,
@@ -155,5 +155,4 @@ const checkAllDevices = async () => {
   }
 };
 
-// เริ่มตรวจสอบสถานะทุก 30 วินาที
-setInterval(checkAllDevices, 30000); // 30 วินาที
+setInterval(checkAllDevices, 30000);
