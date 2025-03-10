@@ -16,7 +16,7 @@ connectDB();
 
 // อนุญาต CORS
 app.use(cors({
-  origin: ['http://localhost:3000', 'https://frontend-m79pwme0n-naruephats-projects.vercel.app'],
+  origin: ['http://localhost:3000', 'https://my-device-monitoring-frontend.vercel.app'],
   credentials: true,
 }));
 
