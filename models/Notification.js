@@ -5,8 +5,8 @@ const notificationSchema = new mongoose.Schema({
   deviceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Device', required: true },
   deviceName: { type: String, required: true },
   ip: { type: String, required: true },
-  previousStatus: { type: String, enum: ['online', 'offline'], required: true },
-  newStatus: { type: String, enum: ['online', 'offline'], required: true },
+  previousStatus: { type: String, required: true },
+  newStatus: { type: String, required: true },
   timestamp: { type: Date, default: Date.now },
 });
 
